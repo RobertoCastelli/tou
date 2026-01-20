@@ -4,6 +4,8 @@ import "./App.css";
 
 function App() {
   const [frase, setFrase] = useState(null);
+  const [recipient, setRecipient] = useState(null);
+  const [feedback, setFeedback] = useState(null);
 
   const lastSentByReactRef = useRef(false);
   const clientRef = useRef(null);
@@ -30,16 +32,17 @@ function App() {
     client.on("message", (topic) => {
       if (topic === "tou/to-react") {
         if (lastSentByReactRef.current) {
-          // INCROCIO: ESP32 è il secondo
-          const diff = Date.now() - pendingTouStartedAt.current;
-          setFrase(calcolaFrase(diff));
+          // 1° React --> 2° ESP32
+          setRecipient("esp32");
+          setFeedback("i pensieri si sono incontrati...");
           lastSentByReactRef.current = false;
-          pendingTouStartedAt.current = null;
+          hasPendingTouRef.current = false;
         } else {
-          // ESP32 ha inviato per primo
+          // 1° ESP32 --> 2° React
           pendingTouStartedAt.current = Date.now();
           hasPendingTouRef.current = true;
           lastSentByReactRef.current = false;
+          setRecipient("react");
         }
       }
     });
@@ -47,43 +50,44 @@ function App() {
     return () => client.end();
   }, []);
 
+  
+  // Bottone Ract = invio o ricezione TOU
+  function handleSend() {
+    if (hasPendingTouRef.current) {
+      // React riceve TOU da ESP32
+      const diff = Date.now() - pendingTouStartedAt.current;
+      setFrase(calcolaFrase(diff));
+      setFeedback(null);
+      hasPendingTouRef.current = false;
+      pendingTouStartedAt.current = null;
+    } else {
+      // React invia TOU a ESP32
+      clientRef.current.publish("tou/to-esp32", "tou");
+      pendingTouStartedAt.current = Date.now();
+      lastSentByReactRef.current = true;
+      setFrase(null);
+      setRecipient("esp32");
+    }
+  }
+
   function calcolaFrase(diffMs) {
     const t = diffMs / 1000;
     if (t < 3) return "ti pensavo proprio ora";
     if (t < 6) return "i nostri pensieri si sono sfiorati";
     if (t < 9) return "ti avevo in mente";
-    if (t < 12) return "È da un po’ che ti penso";
+    if (t < 12) return "È da oggi che ti penso";
     if (t < 15) return "il pensiero resta";
     return "il pensiero ha trovato il suo sempre";
   }
-
-  // PREMO = DECIDO
-  function handleSend() {
-    if (hasPendingTouRef.current) {
-      // INCROCIO → frase
-      const diff = Date.now() - pendingTouStartedAt.current;
-      setFrase(calcolaFrase(diff));
-
-      hasPendingTouRef.current = false;
-      pendingTouStartedAt.current = null;
-    } else {
-      // INVIO → ESP32
-      clientRef.current.publish("tou/to-esp32", "tou");
-      pendingTouStartedAt.current = Date.now();
-      lastSentByReactRef.current = true;
-      setFrase(null);
-    }
-  }
-
+  
   return (
-    <div style={{ textAlign: "center", marginTop: 40 }}>
+    <div>
       <h1>TOU</h1>
-
       <button onClick={handleSend} style={{ fontSize: 30 }}>
         🚨
       </button>
-
-      {frase && <div style={{ marginTop: 20, fontSize: 20 }}>{frase}</div>}
+      {recipient === "react" && frase && <div>{frase}</div>}
+      {feedback && <div>{feedback}</div>}
     </div>
   );
 }

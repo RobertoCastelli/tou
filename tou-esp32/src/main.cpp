@@ -1,7 +1,28 @@
 #include <Arduino.h>
+
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <WiFiClientSecure.h>
+
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+
+// ---------- OLED ----------
+Adafruit_SSD1306 display(
+  SCREEN_WIDTH,
+  SCREEN_HEIGHT,
+  &Wire,
+  -1   // reset pin (non usato su I2C)
+);
+
+String oledMessage = "";
+bool oledMessageDisappear = false;
+unsigned long oledClearAt = 0;
 
 // ---------- PIN ----------
 const int LED_PIN = 25;
@@ -61,9 +82,31 @@ void onMessage(char* topic, byte* payload, unsigned int length) {
   }
 }
 
+// ---------- OLED MESSAGE ----------
+void showText(String text, bool disappear = true, unsigned long durationMs = 2000) {
+  oledMessage = text;
+  oledMessageDisappear = disappear;
+  oledClearAt = millis() + durationMs;
+
+  display.clearDisplay();
+  display.setCursor(0, 20);
+  display.println(oledMessage);
+  display.display();
+}
+
 // ---------- SETUP ----------
 void setup() {
   Serial.begin(115200);
+
+  // OLED
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);
+  display.setCursor(0, 20);
+  
+  showText("TOU ESP32 READY", true, 5000);
+
 
   // LED PWM
   ledcSetup(LED_CHANNEL, LED_FREQ, PWM_RES);
@@ -100,13 +143,19 @@ void setup() {
 // ---------- LOOP ----------
 void loop() {
   MQTTClient.loop();
+  
+  // --------- OLED MESSAGE CLEAR ----------
+  if(oledMessageDisappear && millis() > oledClearAt) {
+    display.clearDisplay();
+    display.display();
+  }
 
   // --------- BUTTON ----------
   static int lastButtonState = HIGH;
   int currentButtonState = digitalRead(BUTTON_PIN);
 
   if (lastButtonState == HIGH && currentButtonState == LOW) {
-    // INVIO → REACT
+    // ESP32 invia TOU a React
     MQTTClient.publish("tou/to-react", "tou");
   }
 
