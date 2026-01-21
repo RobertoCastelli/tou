@@ -28,49 +28,58 @@ function App() {
       client.subscribe("tou/to-react");
     });
 
-    // Ricezione = memorizzazione (NON decisione)
+    // Ricezione messaggio TOU (decide chi è il 1° e chi il 2°)
     client.on("message", (topic) => {
       if (topic === "tou/to-react") {
         if (lastSentByReactRef.current) {
-          // 1° React --> 2° ESP32
+          // React invia --> ESP32 riceve
           setRecipient("esp32");
-          setFeedback("i pensieri si sono incontrati...");
-          lastSentByReactRef.current = false;
-          hasPendingTouRef.current = false;
+          const rispostaAt = Date.now() - pendingTouStartedAt.current; //calcolo tempo dall'invio alla ricezione
+          const fraseTou = generaFraseInRisposta(rispostaAt); // scelgo frase in base al tempo
+          clientRef.current.publish("tou/to-esp32", "FRASE:" + fraseTou); // invio frase a ESP32
+          lastSentByReactRef.current = false; // resetto React: non è più il 1°
+          hasPendingTouRef.current = false; // resetto pending: React non ha nulla in sospeso
+          setFeedback("i pensieri si sono incontrati..."); // feedback di avvenuta ricezione
         } else {
-          // 1° ESP32 --> 2° React
-          pendingTouStartedAt.current = Date.now();
-          hasPendingTouRef.current = true;
-          lastSentByReactRef.current = false;
+          // ESP32 invia --> React riceve
           setRecipient("react");
+          pendingTouStartedAt.current = Date.now(); // memorizzo timestamp di inizio TOU
+          hasPendingTouRef.current = true; // React ha un TOU in sospeso
+          lastSentByReactRef.current = false; // React non è il 1°
         }
       }
     });
-
-    return () => client.end();
+    return () => client.end(); // Cleanup on unmount
   }, []);
 
-  
-  // Bottone Ract = invio o ricezione TOU
+  // Gestione bottone TOU
   function handleSend() {
+    // React ha un TOU in sospeso
     if (hasPendingTouRef.current) {
       // React riceve TOU da ESP32
-      const diff = Date.now() - pendingTouStartedAt.current;
-      setFrase(calcolaFrase(diff));
-      setFeedback(null);
-      hasPendingTouRef.current = false;
+      setFeedback(null); // resetto feedback precedente
+      const rispostaAt = Date.now() - pendingTouStartedAt.current; // calcolo tempo dalla ricezione all'invio
+      setFrase(generaFraseInRisposta(rispostaAt)); // crea frase per React
+      setTimeout(() => setFrase(null), 5000); // resetto frase dopo 5s
+
+      clientRef.current.publish(
+        "tou/to-esp32",
+        "FEEDBACK:i pensieri si sono incontrati",
+      ); // invio feedback a ESP32
+      hasPendingTouRef.current = false; // chiudo il ciclo TOU
       pendingTouStartedAt.current = null;
+      lastSentByReactRef.current = false;
     } else {
       // React invia TOU a ESP32
-      clientRef.current.publish("tou/to-esp32", "tou");
-      pendingTouStartedAt.current = Date.now();
-      lastSentByReactRef.current = true;
-      setFrase(null);
       setRecipient("esp32");
+      setFrase(null); // resetto frase precedente
+      clientRef.current.publish("tou/to-esp32", "tou"); // invio il "gesto" TOU
+      pendingTouStartedAt.current = Date.now(); // memorizzo timestamp di inizio TOU
+      lastSentByReactRef.current = true; // React è stato il 1°
     }
   }
 
-  function calcolaFrase(diffMs) {
+  function generaFraseInRisposta(diffMs) {
     const t = diffMs / 1000;
     if (t < 3) return "ti pensavo proprio ora";
     if (t < 6) return "i nostri pensieri si sono sfiorati";
@@ -79,13 +88,11 @@ function App() {
     if (t < 15) return "il pensiero resta";
     return "il pensiero ha trovato il suo sempre";
   }
-  
+
   return (
     <div>
       <h1>TOU</h1>
-      <button onClick={handleSend} style={{ fontSize: 30 }}>
-        🚨
-      </button>
+      <button onClick={handleSend}>🚨</button>
       {recipient === "react" && frase && <div>{frase}</div>}
       {feedback && <div>{feedback}</div>}
     </div>

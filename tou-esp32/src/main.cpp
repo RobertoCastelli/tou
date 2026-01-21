@@ -75,13 +75,6 @@ void startHeartbeat(int cycles) {
   lastBeatTime = millis();
 }
 
-// ---------- MQTT CALLBACK ----------
-void onMessage(char* topic, byte* payload, unsigned int length) {
-  if (strcmp(topic, "tou/to-esp32") == 0) {
-    startHeartbeat(4);   // SUONA SOLO IN RICEZIONE
-  }
-}
-
 // ---------- OLED MESSAGE ----------
 void showText(String text, bool disappear = true, unsigned long durationMs = 2000) {
   oledMessage = text;
@@ -92,6 +85,26 @@ void showText(String text, bool disappear = true, unsigned long durationMs = 200
   display.setCursor(0, 20);
   display.println(oledMessage);
   display.display();
+}
+
+// ---------- MQTT CALLBACK ----------
+void onMessage(char* topic, byte* payload, unsigned int length) {
+  if (strcmp(topic, "tou/to-esp32") == 0) {
+    String msg;
+    for (unsigned int i = 0; i < length; i++) {
+      msg += (char)payload[i];
+    } 
+    // Controlla se il messaggio è un feedback
+    if (msg.startsWith("FEEDBACK:")) {
+      String text = msg.substring(9);
+      showText(text, false);
+      startHeartbeat(4);
+    } else if (msg.startsWith("FRASE:")) {
+      String text = msg.substring(6);
+      showText(text, true, 5000);
+      startHeartbeat(4);
+    }
+  }
 }
 
 // ---------- SETUP ----------

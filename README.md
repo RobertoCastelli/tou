@@ -188,3 +188,55 @@ Not fast.
 
 > _A thought may fade.
 > A crossing becomes meaning._
+
+           ┌──────────────────────┐
+           │        NEUTRO        │
+           │  nessun ciclo aperto │
+           └──────────┬───────────┘
+                      │
+          (GESTO 1: qualcuno preme)
+                      │
+                      ▼
+        ┌────────────────────────────┐
+        │          PENDING           │
+        │  primo gesto registrato    │
+        │  (timestamp salvato)       │
+        └──────────┬─────────────────┘
+                   │
+      ┌────────────┴─────────────┐
+      │                          │
+      │                          │
+      ▼                          ▼
+
+┌───────────────┐ ┌────────────────┐
+│ React preme │ │ ESP32 preme │
+│ (React è 2°) │ │ (ESP32 è 2°) │
+└───────┬───────┘ └───────┬────────┘
+│ │
+│ │
+▼ ▼
+┌────────────────┐ ┌────────────────────┐
+│ FRASE su React │ │ FRASE su ESP32 │
+│ (5 secondi) │ │ (OLED, 5 secondi) │
+└───────┬────────┘ └────────┬───────────┘
+│ │
+│ │
+▼ ▼
+┌────────────────────┐ ┌────────────────────┐
+│ feedback a ESP32 │ │ feedback a React │
+│ (persistente) │ │ (persistente) │
+└──────────┬─────────┘ └──────────┬─────────┘
+│ │
+└───────────┬────────────┘
+▼
+┌────────────────┐
+│ CICLO │
+│ CHIUSO │
+└────────────────┘
+│
+(nuovo gesto cancella feedback)
+│
+▼
+┌────────────────┐
+│ NEUTRO │
+└────────────────┘
