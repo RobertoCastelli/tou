@@ -61,7 +61,6 @@ function App() {
       const rispostaAt = Date.now() - pendingTouStartedAt.current; // calcolo tempo dalla ricezione all'invio
       setFrase(generaFraseInRisposta(rispostaAt)); // crea frase per React
       setTimeout(() => setFrase(null), 5000); // resetto frase dopo 5s
-
       clientRef.current.publish(
         "tou/to-esp32",
         "FEEDBACK:i pensieri si sono incontrati",
