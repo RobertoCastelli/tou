@@ -8,11 +8,13 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+// ---------- OLED ----------
 
 #define SCREEN_WIDTH 128
 #define SCREEN_HEIGHT 64
+#define CHAR_WIDTH 6
+#define CHAR_HEIGHT 8
 
-// ---------- OLED ----------
 Adafruit_SSD1306 display(
   SCREEN_WIDTH,
   SCREEN_HEIGHT,
@@ -23,6 +25,7 @@ Adafruit_SSD1306 display(
 String oledMessage = "";
 bool oledMessageDisappear = false;
 unsigned long oledClearAt = 0;
+
 
 // ---------- PIN ----------
 const int LED_PIN = 25;
@@ -80,9 +83,22 @@ void showText(String text, bool disappear = true, unsigned long durationMs = 200
   oledMessage = text;
   oledMessageDisappear = disappear;
   oledClearAt = millis() + durationMs;
+  
+  int textLength = text.length();
+  int textPixelWidth = textLength * CHAR_WIDTH;
+  
+  // Calcolo centratura
+  int x = (SCREEN_WIDTH - textPixelWidth) / 2;
+  int y = (SCREEN_HEIGHT - CHAR_HEIGHT) / 2;
+  
+  // Evita valori negativi
+  if (x < 0) x = 0;
+  if (y < 0) y = 0;
 
   display.clearDisplay();
-  display.setCursor(0, 20);
+  display.setTextSize(1);
+  display.setTextColor(SSD1306_WHITE);  
+  display.setCursor(x, y);
   display.println(oledMessage);
   display.display();
 }
@@ -161,6 +177,7 @@ void loop() {
   if(oledMessageDisappear && millis() > oledClearAt) {
     display.clearDisplay();
     display.display();
+    oledMessageDisappear = false;
   }
 
   // --------- BUTTON ----------

@@ -11,6 +11,7 @@ function App() {
   const clientRef = useRef(null);
   const hasPendingRef = useRef(false);
   const pendingStartedAt = useRef(null);
+  const fraseTimeOutRef = useRef(null); // evita click flooding
 
   const MSG_TOU = "TOU";
   const INCIPIT_FRASE = "FRASE:";
@@ -79,7 +80,13 @@ function App() {
       setFeedback(null);
       const rispostaAt = Date.now() - pendingStartedAt.current; // calcolo tempo dalla ricezione all'invio
       setFrase(fraseInBaseAlTempoDiRisposta(rispostaAt));
-      setTimeout(() => setFrase(null), 5000);
+
+      if (fraseTimeOutRef.current) clearTimeout(fraseTimeOutRef.current);
+      fraseTimeOutRef.current = setTimeout(() => {
+        setFrase(null);
+        fraseTimeOutRef.current = null;
+      }, 5000);
+
       clientRef.current.publish(
         "tou/to-esp32",
         INCIPIT_FEEDBACK + "i nostri pensieri si sono incontrati",
